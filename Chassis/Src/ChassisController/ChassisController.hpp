@@ -13,8 +13,16 @@
 #include "StateMachine.hpp"
 
 #include "FirstOrderFilter.hpp"
+#include "KalmanFilter.hpp"
 #include "Math.hpp"
 #include "Pid.hpp"
+#include "Referee.hpp"
+
+#define InitialPowerBuffer 60
+#define square(x) ((x) * (x))
+//#define PowerLimitNormal
+// #define PowerLimitWithBuffer
+// #define PowerLimitWithSuperCap
 
 /**
  * @class ChassisController
@@ -55,9 +63,13 @@ public:
     SuperCapSetUnion SCSetUnion; ///< 用于发送给超级电容的数据
     SuperCapFdbUnion SCFdbUnion; ///< 用于接收超级电容的数据
 
-    FirstOrderFilter VxFilter; ///< 横向速度滤波器
-    FirstOrderFilter VyFilter; ///< 纵向速度滤波器
-    FirstOrderFilter VwFilter; ///< 旋转速度滤波器
+    // FirstOrderFilter VxFilter; ///< 横向速度滤波器
+    // FirstOrderFilter VyFilter; ///< 纵向速度滤波器
+    // FirstOrderFilter VwFilter; ///< 旋转速度滤波器
+
+    KalmanFilter VxFilter; ///< 横向速度滤波器
+    KalmanFilter VyFilter; ///< 纵向速度滤波器
+    KalmanFilter VwFilter; ///< 旋转速度滤波器
 
     BoardMsg ChassisMsg; ///< 用于发送给云台的数据
     /**
@@ -73,6 +85,18 @@ public:
      * @brief 构造函数，将位于controller的四个底盘电机指针传入
      */
     void HandleInput() override;
+    /**
+     * @brief 功率限制函数，用于限制底盘功率
+     */
+    void PowerLimit();
+    /**
+     * @brief 根据缓存能量，限制底盘功率
+     */
+    void PowerLimitWithPowerBuffer();
+    /**
+     * @brief 根据超级电容，限制底盘功率
+     */
+    void PowerLimitWithSuperCap();
 
     ChassisController() {};
     ~ChassisController() {};

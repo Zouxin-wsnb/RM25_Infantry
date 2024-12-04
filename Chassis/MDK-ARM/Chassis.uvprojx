@@ -82,7 +82,7 @@
           </BeforeMake>
           <AfterMake>
             <RunUserProg1>0</RunUserProg1>
-            <RunUserProg2>1</RunUserProg2>
+            <RunUserProg2>0</RunUserProg2>
             <UserProg1Name></UserProg1Name>
             <UserProg2Name></UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F407xx,ARM_MATH_CM4,ARM_MATH_MATRIX_CHECK,ARM_MATH_ROUNDING,__TARGET_FPU_VFP</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Src/BSP;../Src/BSP/can;../Src/BSP/dwt;../Src/BSP/gpio;../Src/BSP/iic;../Src/BSP/pwm;../Src/BSP/spi;../Src/BSP/tim;../Src/BSP/usart;../Src/ChassisController;../Src/Entity/board_connectivity;../Src/Entity/buzzer;../Src/Entity/daemon;../Src/Entity/GMMotor;../Src/Entity/LED;../Src/Utility;../Src/Entity/Monitor;../Src/Entity/SuperCap;../Src/Entity/Referee;../Middlewares/ST/ARM/DSP/Inc</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc;../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F4xx/Include;../Drivers/CMSIS/Include;../Src/BSP;../Src/BSP/can;../Src/BSP/dwt;../Src/BSP/gpio;../Src/BSP/iic;../Src/BSP/pwm;../Src/BSP/spi;../Src/BSP/tim;../Src/BSP/usart;../Src/ChassisController;../Src/Entity/board_connectivity;../Src/Entity/buzzer;../Src/Entity/daemon;../Src/Entity/GMMotor;../Src/Entity/LED;..\Src\Utility;../Src/Entity/Monitor;../Src/Entity/SuperCap;..\Src\Entity\Referee;../Middlewares/ST/ARM/DSP/Inc;..\Src\Entity\rmuc2024_jlui</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -656,6 +656,11 @@
               <FileType>8</FileType>
               <FilePath>..\Src\Entity\Referee\Referee.cpp</FilePath>
             </File>
+            <File>
+              <FileName>jlui.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\Entity\Referee\jlui.cpp</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -720,6 +725,11 @@
               <FileName>crc.cpp</FileName>
               <FileType>8</FileType>
               <FilePath>..\Src\Utility\crc.cpp</FilePath>
+            </File>
+            <File>
+              <FileName>KalmanFilter.cpp</FileName>
+              <FileType>8</FileType>
+              <FilePath>..\Src\Utility\KalmanFilter.cpp</FilePath>
             </File>
           </Files>
         </Group>

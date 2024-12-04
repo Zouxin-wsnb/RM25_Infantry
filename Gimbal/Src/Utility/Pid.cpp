@@ -53,18 +53,44 @@ static void f_Integral_Limit(PID *pid)
         }
     }
 
-    if (temp_Iout > pid->maxIOut)
+    if (temp_Iout > pid->maxIOut || temp_Iout < -pid->maxIOut)
     {
         pid->iTerm = 0;
-        pid->iResult = pid->maxIOut;
     }
-    if (temp_Iout < -pid->maxIOut)
+}
+
+static void f_PID_BlockedHandle(PID *pid)
+{
+   // 排除PID输出本身很小的情况
+    if (abs(pid->ref) < pid->maxOut * 0.01)
+        return;
+	
+    // 考虑到该判断策略的灵活性，0.9这个常数的选取是很灵活的
+    if ((abs(pid->ref - pid->fdb) / abs(pid->ref)) > 0.8f)
     {
-        pid->iTerm = 0;
-        pid->iResult = -pid->maxIOut;
+        // 一旦可能堵转正常计数归零
+        pid->rightcount = 0;
+        // 电机堵转计数
+        pid->errorcount++; 
+    }
+    else if ((abs(pid->ref - pid->fdb) / abs(pid->ref)) < 0.2f)
+    {
+        pid->rightcount++;
     }
 
-    // pid->iTerm = Math::FloatConstrain(pid->iTerm, -pid->maxIOut, pid->maxIOut);
+    if (pid->errorcount > 500)
+    {
+        // 上述现象持续一段时间则被认定为电机堵转
+        pid->Motorblocked = true;
+		pid->Motornormal = false;
+    }
+    if (pid->rightcount > 300)
+    {
+        // 上述现象持续一段时间则被认定为电机正常
+        pid->Motorblocked = false;
+        pid->Motornormal = true;
+        pid->errorcount = 0;
+    }
 }
 
 PID::PID() : mode(PID_POSITION),
@@ -77,6 +103,10 @@ PID::PID() : mode(PID_POSITION),
     fdb = last_fbd = 0.0f;
     err[0] = err[1] = err[2] = 0.0f;
     deadband = 0.0f;
+    errorcount = 0;
+    rightcount = 0;
+    Motorblocked = false;
+    Motornormal = true;
 }
 
 void PID::UpdateResult(void)
@@ -123,6 +153,9 @@ void PID::UpdateResult(void)
         f_Changing_Integral_Rate(this); // 变速积分
     if (mode & PID_Integral_Limit)
         f_Integral_Limit(this); // 积分限幅
+
+    // 堵转检测
+    f_PID_BlockedHandle(this);
 
     iResult += iTerm;
     iResult = Math::LimitABS(iResult, maxIOut);

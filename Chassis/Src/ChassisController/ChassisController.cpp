@@ -2,12 +2,11 @@
 
 extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
-float debug_fdb;
-float debug_set;
-float delta;
-float kp = 150.0f;
-float ki = 0.0f;
-float kd = 4.5f;
+
+float v_loss = 0.1;
+float t2_loss = 10;
+float relax_loss = 2.6;
+
 /**
  * @brief 初始化函数，用于挂载四个底盘电机，并设置PID参数
  */
@@ -86,17 +85,28 @@ void ChassisController::Init()
     BoardConnectivity::Instance()->Add2Memory(SCSetUnion.msg);
     BoardConnectivity::Instance()->Add2Memory(SCFdbUnion.msg);
 
-    VxFilter.Init();
-    VxFilter.SetTau(0.25);
-    VxFilter.SetUpdatePeriod(1);
+    // VxFilter.Init();
+    // VxFilter.SetTau(0.25);
+    // VxFilter.SetUpdatePeriod(1);
 
-    VyFilter.Init();
-    VyFilter.SetTau(0.25);
-    VyFilter.SetUpdatePeriod(1);
+    // VyFilter.Init();
+    // VyFilter.SetTau(0.25);
+    // VyFilter.SetUpdatePeriod(1);
 
-    VwFilter.Init();
-    VwFilter.SetTau(0.1);
-    VwFilter.SetUpdatePeriod(1);
+    // VwFilter.Init();
+    // VwFilter.SetTau(0.1);
+    // VwFilter.SetUpdatePeriod(1);
+
+    VxFilter.Clear();
+    VyFilter.Clear();
+    VwFilter.Clear();
+
+    VxFilter.SetQ(0.001f);
+    VxFilter.SetR(0.6f);
+    VyFilter.SetQ(0.001f);
+    VyFilter.SetR(0.6f);
+    VwFilter.SetQ(0.001f);
+    VwFilter.SetR(0.6f);
 
     Monitor::Instance()->Log_Messages(Monitor::INFO, (uint8_t *)"ChassisController Init Success!\r\n");
 }
@@ -124,17 +134,23 @@ void ChassisController::Run()
         RelativeAngle = 0;
     }
 
-    VxFilter.SetInput(Vx); // 滤波
-    VxFilter.Update();
-    Vx = VxFilter.GetResult();
+    // 一阶滤波
+    // VxFilter.SetInput(Vx); // 滤波
+    // VxFilter.Update();
+    // Vx = VxFilter.GetResult();
 
-    VyFilter.SetInput(Vy); // 滤波
-    VyFilter.Update();
-    Vy = VyFilter.GetResult();
+    // VyFilter.SetInput(Vy); // 滤波
+    // VyFilter.Update();
+    // Vy = VyFilter.GetResult();
 
-//    VwFilter.SetInput(Vw); // 滤波
-//    VwFilter.Update();
-//    Vw = VwFilter.GetResult();
+    // VwFilter.SetInput(Vw); // 滤波
+    // VwFilter.Update();
+    // Vw = VwFilter.GetResult();
+
+    // 一阶卡尔曼滤波
+    Vx = VxFilter.Update(Vx);
+    Vy = VyFilter.Update(Vy);
+    Vw = VwFilter.Update(Vw);
 
     float SinAngle = arm_sin_f32(RelativeAngle);
     float CosAngle = arm_cos_f32(RelativeAngle);
@@ -163,14 +179,124 @@ void ChassisController::Run()
     L_Rear.setOutput();
 
     BoardConnectivity::Instance()->Add2Memory(SCSetUnion.msg);
-		
-		debug_set = R_Front.speedPid.ref;
-		debug_fdb = R_Front.speedPid.fdb;
-		delta = debug_set - debug_fdb;
-		GM3508SpeedPid.kp = kp;
-    GM3508SpeedPid.ki = ki;
-    GM3508SpeedPid.kd = kd;
 }
+
+#ifdef PowerLimitNormal
+void ChassisController::PowerLimit()
+{
+    
+    double Power_Limit = Referee::Instance()->GameRobotStatus.chassis_power_limit * 1.0f; // 电机底盘功率限制
+
+    //double effort_coeff=13.44; // 功率系数
+    //double velocity_coeff=0.15; // 速度系数
+    //double power_offset=18.72; // 功率偏移
+
+    // double a=0., b=0., c=-power_offset-power_max; // 二次函数参数
+
+    // float Kt = 0.3; // 电机转矩系数
+    // float current_set = 0; // 电机电流设定值
+    // // 力矩平方和
+    // a+=square(R_Front.currentSet*Kt*20/15000);
+    // a+=square(L_Front.currentSet*Kt*20/15000);
+    // a+=square(R_Rear.currentSet*Kt*20/15000);
+    // a+=square(L_Rear.currentSet*Kt*20/15000);
+    // // 力矩乘速度乘积和
+	// b+=Math::abs(R_Front.currentSet*Kt*20/15000*R_Front.speedSet);
+    // b+=Math::abs(L_Front.currentSet*Kt*20/15000*L_Front.speedSet);
+    // b+=Math::abs(R_Rear.currentSet*Kt*20/15000*R_Rear.speedSet);
+    // b+=Math::abs(L_Rear.currentSet*Kt*20/15000*L_Rear.speedSet);
+    // // 速度平方和
+    // c+=square(R_Front.speedSet);
+    // c+=square(L_Front.speedSet);
+    // c+=square(R_Rear.speedSet);
+    // c+=square(L_Rear.speedSet);
+
+    // a*=effort_coeff;
+    // c*=velocity_coeff;
+    // //缩放系数
+    // double zoom_coeff = (square(b) - 4 * a * c) > 0 ? ((-b + sqrt(square(b) - 4 * a * c)) / (2 * a)) : 0.;
+    //---------------------------------------------------------------------------------------------------------
+    float k1 = v_loss; // 电机转速产生的功率损耗系数
+    float k2 = t2_loss; // 电机力矩平方产生的功率损耗系数
+    float k3 = relax_loss; // 电机静态损耗
+
+    // 1. 转换系数修正
+    const float CURRENT_TO_TORQUE = 0.3f * (20.0f / 16384.0f); // Nm/A
+    const float RPM_TO_RADS = 2.0f *Math::Pi / 60.0f; // 转速单位转换
+    
+    // 2. 计算每个电机功率
+    auto calculateMotorPower = [&](GM3508& motor) 
+    {
+        double torque = motor.motorFeedback.currentFdb * CURRENT_TO_TORQUE;
+        double speed = motor.motorFeedback.speedFdb ;
+        
+        // 计算机械功率和损耗
+        double mech_power = Math::abs(torque * speed);
+        double loss_power = k1 * Math::abs(speed) + k2 * torque * torque;
+        return mech_power + loss_power;
+    };
+    
+    // 3. 计算总功率
+    double power_sum = calculateMotorPower(R_Front) +
+                      calculateMotorPower(L_Front) +
+                      calculateMotorPower(R_Rear) +
+                      calculateMotorPower(L_Rear) + k3;
+    // 4. 功率限制
+    if(power_sum > Power_Limit)
+    {
+        // 限制系数，添加下限防止急停
+        float limit_ratio;
+        if(Power_Limit / power_sum > 0.1)
+        {
+            limit_ratio = Power_Limit / power_sum;
+        }
+        else
+        {
+            limit_ratio = 0.1;
+        }
+        
+        // 等比例限制电流
+        R_Front.currentSet *= limit_ratio;
+        L_Front.currentSet *= limit_ratio;
+        R_Rear.currentSet *= limit_ratio;
+        L_Rear.currentSet *= limit_ratio;
+    }
+}
+#else
+#ifdef PowerLimitWithBuffer
+void ChassisController::PowerLimitWithPowerBuffer()
+{
+    int PowerBuffer = Referee::Instance()->PowerHeatData.chassis_power_buffer;
+    double Power_Limit = Referee::Instance()->GameRobotStatus.chassis_power_limit * 1.0f; // 电机底盘功率限制
+    double Power_Sum = Power_Limit;
+    if (InitialPowerBuffer - PowerBuffer > 0)
+    {
+        Power_Sum = (InitialPowerBuffer - PowerBuffer)*10.0f + Power_Limit;
+        float limit_ratio;
+        if(Power_Limit / Power_Sum > 0.1)
+        {
+            limit_ratio = Power_Limit / Power_Sum;
+        }
+        else
+        {
+            limit_ratio = 0.1;
+        }
+        
+        // 等比例限制电流
+        R_Front.currentSet *= limit_ratio;
+        L_Front.currentSet *= limit_ratio;
+        R_Rear.currentSet *= limit_ratio;
+        L_Rear.currentSet *= limit_ratio;
+    }
+}
+#else
+#ifdef PowerLimitWithSuperCap
+void ChassisController::PowerLimitWithSuperCap()
+{
+}
+#endif
+#endif
+#endif
 
 void ChassisController::HandleInput()
 {

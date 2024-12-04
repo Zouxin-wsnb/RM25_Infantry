@@ -116,28 +116,18 @@ void Dr16::UpdateRcStatus()
 
 float Dr16::GetMouseX()
 {
-    return rc_raw->mouse.x*0.00003;
+    return rc_raw->mouse.x;
 }
 
 float Dr16::GetMouseY()
 {
-    return rc_raw->mouse.y*0.00003;
+    return rc_raw->mouse.y;
 }
 
 void Dr16::UpdateKeyStatus()
 {
     PreviousKeyState = CurrentKeyState;
     CurrentKeyState = rc_raw->key.v;
-}
-
-uint8_t Dr16::L_Press()
-{
-    return rc_raw->mouse.press_l;
-}
-
-uint8_t Dr16::R_Press()
-{
-    return rc_raw->mouse.press_r;
 }
 
 void Dr16::Update()

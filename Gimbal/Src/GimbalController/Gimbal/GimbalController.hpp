@@ -18,8 +18,11 @@
 #include "GimbalStateSearch.hpp"
 #include "GimbalStateRelax.hpp"
 #include "GimbalStateFPS.hpp"
+#include "GimbalPitchAdapt.hpp"
 
 #include "crc.hpp"
+//#define KeyBoardControl 1
+
 /**
  * @struct USBSendPacket
  * @brief USB发送数据包结构体。
@@ -73,7 +76,7 @@ public:
     GimbalStateSearch SearchState;
 
     /**
-     * @brief 遥控器遥控状态
+     * @brief 遥控状态
      */
     GimbalStateRemoteControl RemoteControlState;
 
@@ -81,6 +84,11 @@ public:
      * @brief 底盘跟随云台状态
      */
     GimbalStateFPS FPSState;
+
+    /**
+     * @brief 不是真的状态机，只是用于为视觉初始化坐标系
+     */
+    GimbalStatePitchAdapt PitchAdapt;
 
     /**
      * @brief USB发送数据包。
@@ -100,7 +108,8 @@ public:
     GimbalController() : RelaxState(&YawMotor, &PitchMotor),
                          RemoteControlState(&YawMotor, &PitchMotor),
                          SearchState(&YawMotor, &PitchMotor),
-                         FPSState(&YawMotor, &PitchMotor, &ReceivePacket)
+                         FPSState(&YawMotor, &PitchMotor, &ReceivePacket),
+                         PitchAdapt(&PitchMotor)
     {
         SetCurrentState(&RelaxState);
         SetDefaultState(&RelaxState);

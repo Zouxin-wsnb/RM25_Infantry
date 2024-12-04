@@ -10,7 +10,7 @@
 #include "BoardConnectivity.hpp"
 #include "Math.hpp"
 
-#define IMU_MSG_ID 0xC5
+#define IMU_MSG_ID 0xC5 // ICM42688数据接收ID
 
 typedef struct
 {
@@ -32,6 +32,7 @@ public:
 
     void AHRS_Update();
 
+    //直接指向IMU数据的指针
     BoardMsg *IMU_Msg_1;
     BoardMsg *IMU_Msg_2;
 

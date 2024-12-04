@@ -47,5 +47,5 @@ float KalmanFilter::Update(float input)
     // 更新协方差方程: 本次的系统协方差付给 kfp->LastP 威下一次运算准备。
     this->LastP = (1 - this->Kg) * this->Now_P;
 
-    return this->result;
+    return result;
 }

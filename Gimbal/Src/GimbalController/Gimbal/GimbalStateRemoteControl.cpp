@@ -12,6 +12,7 @@ void GimbalStateRemoteControl::Enter()
     // 云台Yaw轴电机
     YawMotor->controlMode = GM6020::POS_MODE;
     // 速度环PID参数
+    YawMotor->speedPid.mode = PID_POSITION | PID_Integral_Limit | PID_Derivative_On_Measurement;
     YawMotor->speedPid.kp = 200.0f;
     YawMotor->speedPid.ki = 0.0f;
     YawMotor->speedPid.kd = 0.0f;

@@ -1,8 +1,9 @@
 #include "ShooterController.hpp"
 #include "GimbalController.hpp"
+
 extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
-float currentfdb;
+
 void ShooterController::Init()
 {
     SetCurrentState(&RelaxState);
@@ -58,44 +59,27 @@ void ShooterController::Run()
 
 void ShooterController::HandleInput()
 {
-    // 遥控器拨杆切换状态
-    //    if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_MID) // 如果遥控器左边的拨杆中间
-    //    {
-    //        ChangeState(&WarmState);
-    //    }
-    //    else if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_UP) // 如果遥控器左边的拨杆向上
-    //    {
-    //        ChangeState(&KeyControlState);
-    //    }
-    //    else // 默认状态
-    //    {
-    //        ChangeState(&RelaxState);
-    //    }
-
-    //    if (GimbalController::Instance()->ReceivePacket.fire == true)
-    //    {
-    //        GimbalController::Instance()->ReceivePacket.fire = false;
-    //        ChangeState(&FireState);
-    //    }
-
-    // 键盘切换状态
-    if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_SHIFT) == Dr16::PC_KEY_DOWN)
+    if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_MID) // 如果遥控器左边的拨杆中间
+    {
+        ChangeState(&WarmState);
+    }
+    else if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_UP) // 如果遥控器左边的拨杆向上
     {
         ChangeState(&FireState);
     }
-    else if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_X) == Dr16::PC_KEY_DOWN)
-    {
-        ChangeState(&KeyControlState);
-    }
-    else if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_Z) == Dr16::PC_KEY_DOWN)
+    else // 默认状态
     {
         ChangeState(&RelaxState);
     }
-    currentfdb = TriggerMotor.motorFeedback.currentFdb;
 
-    // 放松模式保护
-    //    if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_DOWN) // 如果遥控器左边的拨杆向下
-    //    {
-    //        ChangeState(&RelaxState);
-    //    }
+//    if (GimbalController::Instance()->ReceivePacket.fire == true)
+//    {
+//        GimbalController::Instance()->ReceivePacket.fire = false;
+//        ChangeState(&FireState);
+//    }
+
+    if (Dr16::Instance()->QuerySwStatus(Dr16::RIGHT_SWITCH) == Dr16::RC_SW_DOWN) // 如果遥控器左边的拨杆向下
+    {
+        ChangeState(&RelaxState);
+    }
 }

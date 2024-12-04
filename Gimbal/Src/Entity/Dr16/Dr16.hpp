@@ -148,10 +148,6 @@ public:
      */
     float GetLeftY();
 
-    uint8_t L_Press();
-
-    uint8_t R_Press();
-
     /**
      * @brief 查询电脑按键的状态。
      * @param key 电脑按键的类型。
