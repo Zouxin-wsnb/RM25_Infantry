@@ -2,6 +2,7 @@
 
 extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
+extern TIM_HandleTypeDef htim2;
 
 // 两个方向的偏移量，用于防止切换状态时云台电机旋转180度时的突变
 const float GimbalController::OffsetValue1 = 4.56359291 - Math::Pi;
@@ -13,6 +14,7 @@ void GimbalController::Init()
     RemoteControlState.Init();
     SearchState.Init();
     FPSState.Init();
+    PitchAdapt.Init();
 
     SetDefaultState(&RelaxState);
     SetCurrentState(&RelaxState);
@@ -37,39 +39,80 @@ void GimbalController::Init()
     Monitor::Instance()->Log_Messages(Monitor::INFO, (uint8_t *)("GimbalController Init Success!\r\n"));
 }
 
+#ifdef KeyBoardControl
 void GimbalController::HandleInput()
 {
-    // 遥控器拨杆控制状态
-//    if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_DOWN) // 如果遥控器左边的拨杆向下
-//    {
-//        ChangeState(&RelaxState);
-//    }
-//    else if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_MID) // 如果遥控器左边的拨杆中间
-//    {
-//        ChangeState(&FPSState); // 遥控状态
-//    }
-//    else if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_UP) // 如果遥控器左边的拨杆向上
-//    {
-//        ChangeState(&FPSState); // 搜索状态
-//    }
-//    else // 默认状态
-//    {
-//        ChangeState(&RelaxState);
-//    }
-
     // 键盘控制状态
     if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_R) == Dr16::PC_KEY_DOWN)
         ChangeState(&RelaxState);
     else if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_F) == Dr16::PC_KEY_DOWN)
         ChangeState(&FPSState);
-    else if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_V) == Dr16::PC_KEY_DOWN)
-        ChangeState(&SearchState);
+    else if (Dr16::Instance()->QueryPcKeyStatus(Dr16::PC_KEY_G) == Dr16::PC_KEY_DOWN)
+        ChangeState(&FPSState);
+		else
+				ChangeState(&RelaxState);
+//    else
+//		{
+//				float distance1 = fabs(YawMotor.motorFeedback.positionFdb - OffsetValue1);
+//        float distance2 = fabs(YawMotor.motorFeedback.positionFdb - OffsetValue2);
+//        if (distance1 < distance2)
+//        {
+//            YawMotor.Offset = OffsetValue1;
+//        }
+//        else if (distance1 > distance2)
+//        {
+//            YawMotor.Offset = OffsetValue2;
+//        }
+//				else
+//						ChangeState(&RelaxState);
+//		}
+		
+			if (!PitchAdapt.AdaptFinished)
+			{
+        ChangeState(&PitchAdapt);
+        if (abs(abs(PitchMotor.positionPid.fdb)-3.095f) <= 0.1f)
+        {
+            AHRS::Instance()->INS_Init();
+            HAL_TIM_Base_Start_IT(&htim2);
+            PitchAdapt.AdaptFinished = true;
+        }	
+			}
 
-    // 放松模式保护
+
+    UpdateUSBData();
+    DecodeVisionData();
+}
+#else
+#define RemoteControl
+void GimbalController::HandleInput()
+{
     if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_DOWN) // 如果遥控器左边的拨杆向下
+    {
+        ChangeState(&RelaxState); 
+    }
+    else if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_MID) // 如果遥控器左边的拨杆中间
+    {
+        ChangeState(&FPSState); // 遥控状态
+    }
+    else if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH) == Dr16::RC_SW_UP) // 如果遥控器左边的拨杆向上
+    {
+        ChangeState(&FPSState); // 搜索状态
+    }
+    else // 默认状态
     {
         ChangeState(&RelaxState);
     }
+
+    if (!PitchAdapt.AdaptFinished)
+	{
+        ChangeState(&PitchAdapt);
+        if (abs(abs(PitchMotor.positionPid.fdb)-3.095f) <= 0.1f)
+        {
+            AHRS::Instance()->INS_Init();
+            HAL_TIM_Base_Start_IT(&htim2);
+            PitchAdapt.AdaptFinished = true;
+        }	
+	}
 
     if (Dr16::Instance()->QuerySwStatus(Dr16::LEFT_SWITCH_CHANGE) == Dr16::RC_SWITCH_U2M) // 如果从小陀螺模式切换回底盘跟随云台模式
     {
@@ -88,6 +131,7 @@ void GimbalController::HandleInput()
     UpdateUSBData();
     DecodeVisionData();
 }
+#endif
 
 void GimbalController::Run()
 {

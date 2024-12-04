@@ -11,7 +11,6 @@
 /**
  * @class ChassisStateRemoteControl
  * @brief 底盘遥控状态机，这个状态一般不用于比赛，主要用于调试。
- * @todo 添加键盘控制逻辑
  */
 class ChassisStateRemoteControl : public State
 {

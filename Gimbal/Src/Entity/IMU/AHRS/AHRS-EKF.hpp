@@ -1,17 +1,20 @@
 #ifndef _AHRS_EKF_HPP
 #define _AHRS_EKF_HPP
 
+#include "arm_math.h"
+
 #include "math.h"
+#include "string.h"
+#include "stdint.h"
+
+#include "bsp_dwt.hpp"
+
+#include "QuaternionEKF.h"
 #include "BMI088.hpp"
 #include "IST8310.hpp"
-#include "bsp_dwt.hpp"
-#include "QuaternionEKF.h"
-#include "arm_math.h"
-// #include "user_lib.h"
-#include "Math.hpp"
-#include "stdint.h"
-#include "string.h"
 #include "Monitor.hpp"
+
+#include "Math.hpp"
 
 #define X 0
 #define Y 1

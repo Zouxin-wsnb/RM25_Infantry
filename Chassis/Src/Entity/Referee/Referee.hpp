@@ -5,11 +5,20 @@
 #include "bsp_usart.hpp"
 #include "Monitor.hpp"
 #include "crc.hpp"
+#include "Time.hpp"
+#include "jlui.h"
+
+extern UART_HandleTypeDef huart6;
+extern DMA_HandleTypeDef hdma_usart6_rx;
+extern DMA_HandleTypeDef hdma_usart6_tx;
 
 #define JS_FRAME_HEADER_LEN 5
 #define JS_FRAME_TAIL_LEN 2
 #define JS_FRAME_HEADER_SOF 0xA5
 #define JS_MAX_LEN 127
+#define FLUSHTICK 100
+#define UI_USART huart6
+#define RX_QUEUE_LEN 128
 
 enum JudgeID
 {
@@ -161,7 +170,7 @@ struct SupplyProjectileAction_t
  * @brief 裁判警告信息数据结构体
  * 0x0104
  */
-struct RefereeWarning_T
+struct RefereeWarning_t
 {
     uint8_t level;              // 己方最后一次受到判罚的等级
     uint8_t offending_robot_id; // 己方最后一次受到判罚的违规机器人 ID。
@@ -376,28 +385,44 @@ struct RoboInteractData_t
     uint16_t receiver_id; // 接收者 ID
 } __attribute__((packed));
 
-/**
- * @struct DeleteGraphic_t
- * @brief 删除图形数据结构体
- * 0x0100
- */
-struct DeleteGraphic_t
-{
-    uint8_t delete_type; // 删除类型，0：空操作，1：删除图层，2：删除所有
-    uint8_t layer;       // 图层数：0~9
-} __attribute__((packed));
-
 class Referee
 {
 public:
     Referee();
     ~Referee();
+    GameStatus_t GameStatus;
     GameResult_t GameResult;
+    RoboInteractData_t RoboInteractDataHead;
+    RobotHP_t RobotHP;
+    EventData_t EventData;
+    SupplyProjectileAction_t SupplyProjectileAction;
+    RefereeWarning_t RefereeWarning;
+    DartInfo_t DartInfo;
     GameRobotStatus_t GameRobotStatus;
     PowerHeatData_t PowerHeatData;
+    GameRobotPos_t GameRobotPos;
+    Buff_t Buff;
+    AirSupportData_t AirSupportData;
+    RobotHurt_t RobotHurt;
+    ShootData_t ShootData;
+    BulletRemaining_t BulletRemaining;
+    RfidStatus_t RfidStatus;
+    DartClientCmd_t DartClientCmd;
+    GroundRobotPosition_t GroundRobotPosition;
+    RadarMarkData_t RadarMarkData;
+    SentryInfo_t SentryInfo;
+    RadarInfo_t RadarInfo;
+    RoboInteractData_t RoboInteractData;
 
-    void ProcessData(uint8_t *pData, uint16_t Size);
+    uint8_t Referee_Rx_Buffer[RX_QUEUE_LEN];
+    uint32_t PowerHeatTick;
+    uint32_t GameRobotStatusTick;
     PowerHeatData_t GetPowerHeatData();
+    RobotId GetClientID();
+    void Init();
+    void Update();
+    void ProcessData(uint8_t *pData, uint16_t Size);
+    void TimeOutAdjust();
 
     static Referee *Instance()
     {
@@ -405,4 +430,7 @@ public:
         return &referee;
     }
 };
+
+
+
 #endif

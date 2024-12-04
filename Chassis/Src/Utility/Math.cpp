@@ -216,7 +216,7 @@ namespace Math
     /**
      * @brief 欧拉角转四元数
      * @param q 四元数，格式为{w, x, y, z}
-     * @param euler 欧拉角，格式为{yaw, pitch, roll}
+     * @param euler 欧拉角，格式为{yaw, pitch, roll}，单位为度
      */
     void QuaternionToEularAngle(float *q, float *euler)
     {

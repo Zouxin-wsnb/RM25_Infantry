@@ -15,7 +15,6 @@
 #include "ShooterStateRelax.hpp"
 #include "ShooterStateWarm.hpp"
 #include "ShooterStateFire.hpp"
-#include "ShooterStateKeyControl.hpp"
 
 /**
  * @class ShooterController
@@ -44,12 +43,10 @@ public:
     ShooterStateFire FireState;
     ShooterStateRelax RelaxState;
     ShooterStateWarm WarmState;
-    ShooterStateKeyControl KeyControlState;
 
     ShooterController() : FireState(&LeftFricMotor, &RightFricMotor, &TriggerMotor),
                           RelaxState(&LeftFricMotor, &RightFricMotor, &TriggerMotor),
-                          WarmState(&LeftFricMotor, &RightFricMotor, &TriggerMotor),
-                          KeyControlState(&LeftFricMotor, &RightFricMotor, &TriggerMotor)
+                          WarmState(&LeftFricMotor, &RightFricMotor, &TriggerMotor)
     {
         SetCurrentState(&RelaxState);
         SetDefaultState(&RelaxState);
@@ -63,7 +60,7 @@ public:
     /**
      * @brief 初始化函数。
      */
-    void Init() override;
+    void Init()override;
 
     /**
      * @brief 运行函数。

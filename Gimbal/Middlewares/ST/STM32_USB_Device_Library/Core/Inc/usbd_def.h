@@ -382,7 +382,7 @@ typedef struct _USBD_HandleTypeDef
   void                    *pClassData;
   void                    *pClassDataCmsit[USBD_MAX_SUPPORTED_CLASS];
   void                    *pUserData[USBD_MAX_SUPPORTED_CLASS];
-  PCD_HandleTypeDef       *pData;
+  void                    *pData;
   void                    *pBosDesc;
   void                    *pConfDesc;
   uint32_t                classId;

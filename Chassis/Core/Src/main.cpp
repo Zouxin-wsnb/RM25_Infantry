@@ -21,13 +21,15 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "bsp.hpp" // 板级支持
+#include "bsp.hpp" // 板级支挝
 
 #include "GMMotorHandler.hpp"    // 电机控制
 #include "ChassisController.hpp" //底盘控制
 #include "LED.hpp"                 // LED
 #include "BoardConnectivity.hpp" // 板间通信
 #include "Referee.hpp"
+#include "Time.hpp"
+#include "jlui.h"
 
 #include "stm32f4xx_it.h"
 /* USER CODE END Includes */
@@ -93,6 +95,7 @@ void EnableSystickIT(void);
 void EnableSystickIT(void)
 {
   uint32_t tick_ms = 1; // 1
+	Time::Init(tick_ms);
 
   HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK_DIV8);
 
@@ -104,8 +107,8 @@ void EnableSystickIT(void)
 }
 
 /**
- * @brief  系统中断，每1ms进入�???�???
- * 代码的主循环
+ * @brief  系统中断，毝1ms进入�???�???
+ * 代砝的主循环
  */
 void SysTick_Handler(void)
 {
@@ -122,6 +125,8 @@ void SysTick_Handler(void)
   GMmotorHandler->sendControlData();
   boardConnectivity->BoardConnectivity_Send();
   Monitor::Instance()->Monitor_Run();
+  Time::Tick();
+  referee->Update();
   /* USER CODE END SysTick_IRQn 1 */
 }
 
@@ -170,6 +175,7 @@ int main(void)
   EnableSystickIT();
   LED_ALL_ON();
   Monitor::Instance()->Monitor_RobotFinishInit();
+  referee->Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */

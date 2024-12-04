@@ -37,7 +37,7 @@ public:
     {
         p_DefaultState = s;
     }
-
+    
     State *GetDefaultState()
     {
         return p_DefaultState;
@@ -83,22 +83,13 @@ public:
     void ChangeState(State *newState)
     {
         // 如果新状态为空，直接进入默认状态
-        //        if (!newState)
-        //        {
-        //            if (!p_DefaultState)
-        //            {
-        //                return;
-        //            }
-        //            p_CurrentState = p_DefaultState;
-        //        }
-        // 如果新状态为空，保持之前状态，便于键盘切换
         if (!newState)
         {
-					return;
-//            if (!p_CurrentState)
-//            {
-//                return;
-//            }
+            if (!p_DefaultState)
+            {
+                return;
+            }
+            p_CurrentState = p_DefaultState;
         }
         // 如果新状态和当前状态相同，直接返回
         if (p_CurrentState == newState)

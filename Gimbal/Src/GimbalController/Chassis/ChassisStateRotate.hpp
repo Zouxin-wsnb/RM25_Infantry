@@ -10,7 +10,6 @@
 /**
  * @class ChassisStateRotate
  * @brief 底盘小陀螺状态机。
- * @todo 添加键盘控制逻辑
  * @todo 添加小陀螺随机速度
  */
 class ChassisStateRotate : public State

@@ -1,7 +1,7 @@
 #include "GimbalStateFPS.hpp"
+#include "GimbalController.hpp"
 #include "Chassis/ChassisController.hpp"
-float debug_fdb;
-float debug_set;
+
 void GimbalStateFPS::Init()
 {
     PitchLowerLimit = -25 * Math::DegreeToRad; // Pitch轴电机最小角度 //-35
@@ -54,9 +54,9 @@ void GimbalStateFPS::Enter()
     PitchMotor->controlMode = GM6020::SPD_MODE;
     // 位置环PID参数
     PitchMotor->positionPid.mode = PID_POSITION;
-    PitchMotor->positionPid.kp = 20.0f;
-    PitchMotor->positionPid.ki = 0.002f;
-    PitchMotor->positionPid.kd = 0.0f;
+    PitchMotor->positionPid.kp = 25.0f;
+    PitchMotor->positionPid.ki = 0.02f;
+    PitchMotor->positionPid.kd = 0.1f;
     PitchMotor->positionPid.maxIOut = 3.0f;
     PitchMotor->positionPid.maxOut = 25000.0f;
     // 速度环PID参数
@@ -65,18 +65,18 @@ void GimbalStateFPS::Enter()
     PitchMotor->speedPid.ki = 0.0f;
     PitchMotor->speedPid.kd = 5.0f;
     PitchMotor->speedPid.maxIOut = 0.0f;
-    PitchMotor->speedPid.maxOut = 20000.0f;
+    PitchMotor->speedPid.maxOut = 25000.0f;
 }
 
+#ifdef KeyBoardControl
 void GimbalStateFPS::Execute()
 {
     // 接受遥控器输入
     YawSet += Dr16::Instance()->GetRightX() * 0.008f; // 不需要进行限幅，因为使用了totalAngle
-
     PitchSet += Dr16::Instance()->GetRightY() * 0.005f;
 
-    YawSet += Dr16::Instance()->GetMouseX();
-    PitchSet -= Dr16::Instance()->GetMouseY();
+    YawSet += Dr16::Instance()->GetMouseX() * 0.00003f;
+    PitchSet -= Dr16::Instance()->GetMouseY() * 0.00003f;
 
     PitchSet = Math::FloatConstrain(PitchSet, PitchLowerLimit, PitchUpperLimit); // 将Pitch轴电机的角度范围限幅到[PitchLowerLimit, PitchUpperLimit]
 
@@ -118,9 +118,57 @@ void GimbalStateFPS::Execute()
     // 设置电机输出
     PitchMotor->speedSet = -PitchMotor->positionPid.result;
     PitchMotor->setOutput();
-    debug_fdb = PitchMotor->positionPid.fdb;
-    debug_set = PitchMotor->positionPid.ref;
 }
+#else
+#define RemoteControl
+void GimbalStateFPS::Execute()
+{
+    // 接受遥控器输入
+    YawSet += Dr16::Instance()->GetRightX() * 0.008f; // 不需要进行限幅，因为使用了totalAngle
+
+    PitchSet += Dr16::Instance()->GetRightY() * 0.005f;
+    PitchSet = Math::FloatConstrain(PitchSet, PitchLowerLimit, PitchUpperLimit); // 将Pitch轴电机的角度范围限幅到[PitchLowerLimit, PitchUpperLimit]
+
+    // 根据底盘状态设置Yaw轴电机的前馈
+    if (ChassisController::Instance()->GetCurrentState() == &ChassisController::Instance()->chassisStateFPS)
+    {
+        ForwardVw = ChassisController::Instance()->chassisStateFPS.Vw;
+    }
+    else if (ChassisController::Instance()->GetCurrentState() == &ChassisController::Instance()->chassisStateRotate)
+    {
+        ForwardVw = ChassisController::Instance()->chassisStateRotate.Vw;
+    }
+    else
+    {
+        ForwardVw = 0.0f;
+    }
+
+    AutoAim(); // 自瞄程序
+
+    YawMotor->positionPid.ref = YawPosSetFilter.Update(YawSet);
+    YawMotor->positionPid.fdb = (AHRS::Instance()->INS.YawTotalAngle * Math::DegreeToRad);
+
+    YawMotor->positionPid.UpdateResult();
+
+    // 设置电机输出
+    YawMotor->speedSet = -(float)(YawMotor->positionPid.result + (2.5f * ForwardVw)); // 根据速度PID结果设置电流 + 前馈控制
+    YawMotor->setOutput();                                                            // 设置电机输出
+
+    /*-----------------------------------------PITCH-----------------------------------------*/
+    // Pirtch位置设置一阶滤波
+    PitchSetFilter.SetInput(PitchSet);
+    PitchSetFilter.Update();
+
+    // Pitch PID计算
+    PitchMotor->positionPid.ref = PitchSetFilter.GetResult();
+    PitchMotor->positionPid.fdb = AHRS::Instance()->INS.Pitch * Math::DegreeToRad;
+    PitchMotor->positionPid.UpdateResult();
+
+    // 设置电机输出
+    PitchMotor->speedSet = -PitchMotor->positionPid.result;
+    PitchMotor->setOutput();
+}
+#endif
 
 void GimbalStateFPS::Exit()
 {

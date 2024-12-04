@@ -48,6 +48,14 @@ public:
 
     float deadband;
 
+    // 计数，防止过快响应作出错误判断
+    int errorcount; // 堵转计数
+	int rightcount; // 正常工作计数
+
+    // 标志
+    bool Motorblocked;
+	bool Motornormal;
+
     PID();
     void UpdateResult();
     void Clear();
@@ -77,5 +85,11 @@ static void f_Changing_Integral_Rate(PID *pid);
  * @brief 积分限幅
  */
 static void f_Integral_Limit(PID *pid);
+
+/**
+ * @brief 堵转检测
+ * @note 防止堵转方法未实现，2006经实验证明有自我防堵转机制，效果较好
+ */
+static void f_PID_BlockedHandle(PID *pid);
 
 #endif
