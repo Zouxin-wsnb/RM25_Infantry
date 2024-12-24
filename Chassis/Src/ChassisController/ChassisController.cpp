@@ -3,10 +3,6 @@
 extern CAN_HandleTypeDef hcan1;
 extern CAN_HandleTypeDef hcan2;
 
-float v_loss = 0.1;
-float t2_loss = 10;
-float relax_loss = 2.6;
-
 /**
  * @brief 初始化函数，用于挂载四个底盘电机，并设置PID参数
  */
@@ -173,6 +169,9 @@ void ChassisController::Run()
     L_Rear.speedSet = LR_speedSet * 19 / wheelRadius;
     R_Rear.speedSet = RR_speedSet * 19 / wheelRadius;
 
+    // 限制底盘功率
+    PowerLimit(motors);
+
     R_Front.setOutput();
     L_Front.setOutput();
     R_Rear.setOutput();
@@ -182,85 +181,110 @@ void ChassisController::Run()
 }
 
 #ifdef PowerLimitNormal
-void ChassisController::PowerLimit()
+void ChassisController::PowerLimit(GM3508* motors[])
 {
-    
-    double Power_Limit = Referee::Instance()->GameRobotStatus.chassis_power_limit * 1.0f; // 电机底盘功率限制
+    //最大功率
+	uint16_t max_power_limit =45;
+    max_power_limit = Referee::Instance()->GameRobotStatus.chassis_power_limit;
 
-    //double effort_coeff=13.44; // 功率系数
-    //double velocity_coeff=0.15; // 速度系数
-    //double power_offset=18.72; // 功率偏移
+	float chassis_max_power = 0;
+	float input_power = 0;		 // input power from battery (referee system)
+	float initial_give_power[4]; // initial power from PID calculation
+	float initial_total_power = 0;
+	float scaled_give_power[4];
 
-    // double a=0., b=0., c=-power_offset-power_max; // 二次函数参数
+	// float chassis_power = 0.0f;
+	float chassis_power_buffer = 0.0f;
 
-    // float Kt = 0.3; // 电机转矩系数
-    // float current_set = 0; // 电机电流设定值
-    // // 力矩平方和
-    // a+=square(R_Front.currentSet*Kt*20/15000);
-    // a+=square(L_Front.currentSet*Kt*20/15000);
-    // a+=square(R_Rear.currentSet*Kt*20/15000);
-    // a+=square(L_Rear.currentSet*Kt*20/15000);
-    // // 力矩乘速度乘积和
-	// b+=Math::abs(R_Front.currentSet*Kt*20/15000*R_Front.speedSet);
-    // b+=Math::abs(L_Front.currentSet*Kt*20/15000*L_Front.speedSet);
-    // b+=Math::abs(R_Rear.currentSet*Kt*20/15000*R_Rear.speedSet);
-    // b+=Math::abs(L_Rear.currentSet*Kt*20/15000*L_Rear.speedSet);
-    // // 速度平方和
-    // c+=square(R_Front.speedSet);
-    // c+=square(L_Front.speedSet);
-    // c+=square(R_Rear.speedSet);
-    // c+=square(L_Rear.speedSet);
+    //限制系数
+	float toque_coefficient = 1.99688994e-6f; // (20/16384)*(0.3)*(187/3591)/9.55
+	float a = 1.23e-07;						 // k1
+	float k2 = 1.453e-07;					 // k2
+	float constant = 4.081f;
 
-    // a*=effort_coeff;
-    // c*=velocity_coeff;
-    // //缩放系数
-    // double zoom_coeff = (square(b) - 4 * a * c) > 0 ? ((-b + sqrt(square(b) - 4 * a * c)) / (2 * a)) : 0.;
-    //---------------------------------------------------------------------------------------------------------
-    float k1 = v_loss; // 电机转速产生的功率损耗系数
-    float k2 = t2_loss; // 电机力矩平方产生的功率损耗系数
-    float k3 = relax_loss; // 电机静态损耗
+	// get_chassis_power_and_buffer(&chassis_power, &chassis_power_buffer);
+	// PID_calc(&chassis_power_control->buffer_pid, chassis_power_buffer, 30);
+	// get_chassis_max_power(&max_power_limit);
+	input_power = max_power_limit;// - chassis_power_control->buffer_pid.out; // Input power floating at maximum power
 
-    // 1. 转换系数修正
-    const float CURRENT_TO_TORQUE = 0.3f * (20.0f / 16384.0f); // Nm/A
-    const float RPM_TO_RADS = 2.0f *Math::Pi / 60.0f; // 转速单位转换
-    
-    // 2. 计算每个电机功率
-    auto calculateMotorPower = [&](GM3508& motor) 
-    {
-        double torque = motor.motorFeedback.currentFdb * CURRENT_TO_TORQUE;
-        double speed = motor.motorFeedback.speedFdb ;
-        
-        // 计算机械功率和损耗
-        double mech_power = Math::abs(torque * speed);
-        double loss_power = k1 * Math::abs(speed) + k2 * torque * torque;
-        return mech_power + loss_power;
-    };
-    
-    // 3. 计算总功率
-    double power_sum = calculateMotorPower(R_Front) +
-                      calculateMotorPower(L_Front) +
-                      calculateMotorPower(R_Rear) +
-                      calculateMotorPower(L_Rear) + k3;
-    // 4. 功率限制
-    if(power_sum > Power_Limit)
-    {
-        // 限制系数，添加下限防止急停
-        float limit_ratio;
-        if(Power_Limit / power_sum > 0.1)
-        {
-            limit_ratio = Power_Limit / power_sum;
-        }
-        else
-        {
-            limit_ratio = 0.1;
-        }
-        
-        // 等比例限制电流
-        R_Front.currentSet *= limit_ratio;
-        L_Front.currentSet *= limit_ratio;
-        R_Rear.currentSet *= limit_ratio;
-        L_Rear.currentSet *= limit_ratio;
-    }
+    //超级电容部分尚未实现
+	// CAN_CMD_CAP(input_power); // set the input power of capacitor controller
+
+	// if (rc_ctrl.key.v & KEY_PRESSED_OFFSET_E)
+	// {
+	// 	cap_state = 0;
+	// }
+	// if (rc_ctrl.key.v & KEY_PRESSED_OFFSET_Q)
+	// {
+	// 	cap_state = 1;
+	// }
+
+	// if (cap_measure.cap_percent > 5)
+	// {
+	// 	if (cap_state == 0)
+	// 	{
+	 		chassis_max_power = input_power;//+5 // Slightly greater than the maximum power, avoiding the capacitor being full all the time and improving energy utilization
+	// 	}
+	// 	else
+	// 	{
+	// 		chassis_max_power = input_power + 200;
+	// 	}
+	// }
+	// else
+	// {
+	// 	chassis_max_power = input_power;
+	// }
+
+    //计算初始功率
+	for (uint8_t i = 0; i < 4; i++) // first get all the initial motor power and total motor power
+	{
+		initial_give_power[i] = motors[i]->speedPid.result * toque_coefficient * motors[i]->motorFeedback.speed_rpm +
+								k2 * motors[i]->motorFeedback.speed_rpm * motors[i]->motorFeedback.speed_rpm +
+								a * motors[i]->speedPid.result * motors[i]->speedPid.result + constant;
+
+		if (initial_give_power[i] < 0.0f) // negative power not included (transitory)
+			continue;
+		initial_total_power += initial_give_power[i];
+	}
+
+    //如果初始功率大于最大功率，进行功率限制
+	if (initial_total_power > chassis_max_power) // determine if larger than max power
+	{
+		float power_scale = chassis_max_power / initial_total_power;
+        //对每个电机单独进行功率限制
+		for (uint8_t i = 0; i < 4; i++)
+		{
+			scaled_give_power[i] = initial_give_power[i] * power_scale; // get scaled power
+			if (scaled_give_power[i] < 0)
+			{
+				continue;
+			}
+
+	        float b = toque_coefficient * motors[i]->motorFeedback.speed_rpm;
+			float c = k2 * motors[i]->motorFeedback.speed_rpm * motors[i]->motorFeedback.speed_rpm - scaled_give_power[i] + constant;
+
+			if (motors[i]->speedPid.result > 0) // Selection of the calculation formula according to the direction of the original moment
+			{
+				float temp = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+				if (temp > 16000)
+				{
+					motors[i]->currentSet = 16000;
+				}
+				else
+					motors[i]->currentSet = temp;
+			}
+			else
+			{
+				float temp = (-b - sqrt(b * b - 4 * a * c)) / (2 * a);
+				if (temp < -16000)
+				{
+					motors[i]->currentSet = -16000;
+				}
+				else
+					motors[i]->currentSet = temp;
+			}
+		}
+	}
 }
 #else
 #ifdef PowerLimitWithBuffer
@@ -289,12 +313,6 @@ void ChassisController::PowerLimitWithPowerBuffer()
         L_Rear.currentSet *= limit_ratio;
     }
 }
-#else
-#ifdef PowerLimitWithSuperCap
-void ChassisController::PowerLimitWithSuperCap()
-{
-}
-#endif
 #endif
 #endif
 

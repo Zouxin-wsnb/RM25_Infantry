@@ -20,9 +20,8 @@
 
 #define InitialPowerBuffer 60
 #define square(x) ((x) * (x))
-//#define PowerLimitNormal
+#define PowerLimitNormal
 // #define PowerLimitWithBuffer
-// #define PowerLimitWithSuperCap
 
 /**
  * @class ChassisController
@@ -38,6 +37,9 @@ public:
     GM3508 L_Front; ///< 左前轮
     GM3508 R_Rear;  ///< 右后轮
     GM3508 L_Rear;  ///< 左后轮
+
+    /*用于储存四个底盘轮子的指针*/
+    GM3508 *motors[4] = {&R_Front, &L_Front, &L_Rear, &R_Rear};
 
     /*用于速度解算的变量，单位为 m/s。这些变量也是直接用于操控底盘移动的变量。*/
     float Vx;            ///< 绝对横向移动速度
@@ -88,15 +90,11 @@ public:
     /**
      * @brief 功率限制函数，用于限制底盘功率
      */
-    void PowerLimit();
+    void PowerLimit(GM3508* motor[]);
     /**
      * @brief 根据缓存能量，限制底盘功率
      */
     void PowerLimitWithPowerBuffer();
-    /**
-     * @brief 根据超级电容，限制底盘功率
-     */
-    void PowerLimitWithSuperCap();
 
     ChassisController() {};
     ~ChassisController() {};
